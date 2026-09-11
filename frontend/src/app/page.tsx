@@ -74,6 +74,8 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   }
 
+  const idleTrialCount = 20;
+
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 overflow-x-hidden selection:bg-blue-500/30">
       <style>{`
@@ -288,7 +290,8 @@ interface QDSFlowProps {
 
 function QDSFlow({ transmitting, result, runSeq }: QDSFlowProps) {
   const detected = result?.status === "attack_detected" || result?.status === "attack_undetected";
-  
+  const idleTrialCount = 20;
+
   // Flat Enterprise Palette (No neon glow)
   const BLUE = "#3b82f6";
   const RED = "#ef4444";
@@ -339,7 +342,7 @@ function QDSFlow({ transmitting, result, runSeq }: QDSFlowProps) {
             ? detected
               ? "Bob's measurement statistics flagged tampering."
               : "Bob reconstructed Alice's signed qubit successfully."
-            : `Idle — entangled pair shared (Trials: ${result?.trial_count ?? 20})`}
+            : `Idle — entangled pair shared (Trials: ${idleTrialCount})`}
       </p>
     </div>
   );

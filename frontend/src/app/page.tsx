@@ -1,21 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Activity, BookOpen, CheckCircle2, ChevronRight, Clock3, Download, History, LayoutDashboard, Menu, Play, ShieldAlert, ShieldCheck, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, BookOpen, ChevronRight, Clock3, Download, History, LayoutDashboard, Menu, Play, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { runAttackSimulation, runCleanSimulation } from "@/lib/api";
 import { attackLabels, type AttackType, type RunRecord } from "@/lib/types";
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
-const formatTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const formatTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 });
 const initialChart = [{ index: 0, error: 0.006 }, { index: 1, error: 0.011 }, { index: 2, error: 0.004 }, { index: 3, error: 0.008 }, { index: 4, error: 0.002 }];
 
-function Metric({ label, value, detail, accent = "cyan" }: { label: string; value: string; detail: string; accent?: "cyan" | "mint" | "orange" }) {
+function Metric({ label, value, detail, isAlert = false }: { label: string; value: string; detail: string; isAlert?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[#101e30] p-4">
-      <div className="mono text-[10px] uppercase tracking-[.14em] text-[var(--muted)]">{label}</div>
-      <div className={`mt-2 text-2xl font-bold ${accent === "mint" ? "text-mint" : accent === "orange" ? "text-orange-300" : "text-cyan"}`}>{value}</div>
-      <div className="mono mt-1 text-[10px] text-slate-500">{detail}</div>
+    <div className="border border-zinc-800 bg-zinc-900/50 p-4 rounded-sm">
+      <div className="text-xs font-medium text-zinc-400">{label}</div>
+      <div className={`mt-1.5 text-xl font-semibold tracking-tight ${isAlert ? "text-red-400" : "text-zinc-100"}`}>{value}</div>
+      <div className="mt-1 text-[10px] text-zinc-500 font-mono">{detail}</div>
     </div>
   );
 }
@@ -29,15 +29,20 @@ export default function Dashboard() {
   const [apiOnline, setApiOnline] = useState(true);
   const [chart, setChart] = useState(initialChart);
   const [runSeq, setRunSeq] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const latest = result ?? history[0];
   const nominal = latest?.status !== "attack_detected";
-  const chartData = useMemo(() => chart.slice(-12), [chart]);
+  const chartData = useMemo(() => chart.slice(-15), [chart]);
+
+  useEffect(() => {
+    const handleResize = () => { if (window.innerWidth >= 1024) setSidebarOpen(false); };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   async function execute(type: AttackType | "clean") {
-    // Automatically scroll to the top to see the transmission animation
     window.scrollTo({ top: 0, behavior: "smooth" });
-
     setIsRunning(true);
     setResult(null);
     setRunSeq(s => s + 1);
@@ -64,17 +69,15 @@ export default function Dashboard() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `qbit-verdict-${latest.id}.json`;
+    anchor.download = `qds-audit-${latest.id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
 
   return (
-    <div className="min-h-screen bg-[#07101d]">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 overflow-x-hidden selection:bg-blue-500/30">
       <style>{`
-        @keyframes qds-dash {
-          to { stroke-dashoffset: -12; }
-        }
+        @keyframes qds-dash { to { stroke-dashoffset: -12; } }
         @keyframes qds-travel {
           0% { left: 0%; opacity: 0; transform: translateY(-50%) scale(0.8); }
           15% { opacity: 1; transform: translateY(-50%) scale(1); }
@@ -83,205 +86,199 @@ export default function Dashboard() {
         }
         @keyframes qds-arrive {
           0% { transform: scale(1); }
-          50% { transform: scale(1.1); }
+          50% { transform: scale(1.05); }
           100% { transform: scale(1); }
         }
       `}</style>
-      <aside className="sidebar fixed inset-y-0 left-0 z-20 w-64 border-r border-[var(--line)] bg-[#081321] p-5">
-        <div className="flex items-center gap-3 border-b border-[var(--line)] pb-6">
-          <div className="grid h-10 w-10 place-items-center rounded-lg border border-cyan/40 bg-cyan/10 text-xs font-bold text-cyan">QBIT</div>
-          <div><div className="text-sm font-bold tracking-wide">QBIT</div><div className="mono text-[9px] tracking-[.18em] text-cyan">QUANTUM SIGNATURE LAB</div></div>
+
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/80 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
+      {/* Sidebar - Sharp, dense, enterprise look */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-zinc-800 bg-[#09090b] transition-transform duration-200 ease-in-out lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-[10px] rounded-sm">QDS</div>
+            <div className="text-sm font-semibold tracking-tight">QBIT</div>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-zinc-400 hover:text-zinc-100"><X size={18} /></button>
         </div>
-        <div className="mono mb-3 mt-8 text-[10px] uppercase tracking-[.2em] text-slate-500">Mission subsystems</div>
-        <nav className="space-y-2">
-          {[
-            ["command", LayoutDashboard, "Command Center"],
-            ["history", History, "Simulation History"],
-            ["docs", BookOpen, "Documentation"]
-          ].map(([key, Icon, label]) => (
-            <button key={key as string} onClick={() => setView(key as typeof view)} className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm ${view === key ? "bg-slate-700/60 text-cyan" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
-              <Icon size={16} />{label as string}<ChevronRight size={14} className="ml-auto opacity-40" />
-            </button>
-          ))}
-        </nav>
-        <div className="absolute bottom-5 left-5 right-5 rounded-lg border border-[var(--line)] bg-[#0d1a2b] p-4">
-          <div className="mono text-[9px] uppercase tracking-widest text-slate-500">System status</div>
-          <div className="mt-2 flex items-center gap-2 text-xs"><span className={`pulse-dot h-2 w-2 rounded-full ${apiOnline ? "bg-mint" : "bg-red-400"}`} /> API {apiOnline ? "ONLINE" : "OFFLINE"}</div>
-          <div className="mono mt-3 text-[9px] text-slate-500">SESSION RUNS: {history.length.toString().padStart(2, "0")}</div>
+        
+        <div className="px-3 py-4">
+          <div className="text-[10px] font-semibold text-zinc-500 mb-2 px-2 uppercase tracking-wider">Navigation</div>
+          <nav className="space-y-0.5">
+            {[
+              ["command", LayoutDashboard, "Dashboard"],
+              ["history", History, "Audit Logs"],
+              ["docs", BookOpen, "System Docs"]
+            ].map(([key, Icon, label]) => (
+              <button 
+                key={key as string} 
+                onClick={() => { setView(key as typeof view); setSidebarOpen(false); }} 
+                className={`flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors ${view === key ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"}`}
+              >
+                <Icon size={14} />{label as string}
+              </button>
+            ))}
+          </nav>
+        </div>
+        
+        <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#09090b] p-4">
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className={`h-2 w-2 rounded-full ${apiOnline ? "bg-emerald-500" : "bg-red-500"}`} />
+            Backend {apiOnline ? "Connected" : "Disconnected"}
+          </div>
         </div>
       </aside>
-      <main className="content ml-0 min-h-screen lg:ml-64">
-        <header className="flex items-center justify-between border-b border-[var(--line)] px-6 py-4 lg:px-10">
-          <div><div className="mono text-[10px] uppercase tracking-[.2em] text-slate-500">QDS threat detection / {view}</div><h1 className="mt-1 text-xl font-semibold">{view === "command" ? "Command Center" : view === "history" ? "Simulation History" : "QBIT Documentation"}</h1></div>
-          <div className="flex items-center gap-3"><div className={`flex items-center gap-2 rounded-full border px-3 py-2 mono text-[10px] ${nominal ? "border-mint/30 text-mint" : "border-red-400/30 text-red-300"}`}><span className={`h-2 w-2 rounded-full ${nominal ? "bg-mint" : "bg-red-400"}`} />{nominal ? "NOMINAL" : "DEFCON-1"}</div><Menu className="text-slate-500 lg:hidden" /></div>
-        </header>
-        {view === "docs" ? (
-          <section className="mx-auto max-w-4xl p-6 lg:p-10">
-            <div className="rounded-xl border border-[var(--line)] bg-[#0d1828] p-8">
-              <div className="mb-5 flex items-center gap-3 text-cyan"><BookOpen /> <h2 className="text-lg font-semibold text-white">About QBIT</h2></div>
-              <p className="leading-7 text-slate-400">QBIT is a live dashboard for Quantum Digital Signature threat detection. It sends clean and adversarial verification runs to the FastAPI + Qiskit backend, then visualizes the measured quantum bit error rate, forgery probability, fidelity, and verdict.</p>
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <Metric label="Error rate" value="Decimal 0–1" detail="Displayed as a percentage" />
-                <Metric label="Threshold" value="Backend field" detail="No hard-coded BB84 limit" accent="mint" />
-              </div>
-            </div>
-          </section>
-        ) : view === "history" ? (
-          <section className="p-6 lg:p-10"><RunHistory history={history} /></section>
-        ) : (
-          <section className="grid-bg min-h-[calc(100vh-74px)] p-6 lg:p-10">
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="mono text-[10px] uppercase tracking-[.22em] text-cyan">Live verification console</p>
-                <p className="mt-2 text-sm text-slate-400">Measure quantum channel integrity against active threats.</p>
-              </div>
-              <div className="mono text-[10px] text-slate-500">{latest ? `LAST RUN ${formatTime(latest.timestamp)}` : "AWAITING FIRST RUN"}</div>
-            </div>
-            
-            <div className="mb-6">
-              <QDSFlow transmitting={isRunning} result={latest} runSeq={runSeq} />
-            </div>
 
-            {isRunning && (
-              <div className="mb-5 flex items-center gap-3 rounded-lg border border-cyan/30 bg-cyan/5 px-4 py-3 mono text-xs text-cyan">
-                <Activity size={15} className="animate-pulse" /> ACTIVE SCAN — waiting for backend verdict and channel telemetry
-              </div>
-            )}
-            
-            {latest ? (
-              <div className="mb-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-                <div className={`rounded-xl border p-6 ${latest.status === "attack_detected" ? "border-red-400/40 bg-red-950/20" : "border-mint/30 bg-[#102b2b]"}`}>
-                  <div className={`mono flex items-center gap-2 text-[10px] uppercase tracking-widest ${latest.status === "attack_detected" ? "text-red-300" : "text-mint"}`}>
-                    {latest.status === "attack_detected" ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />} {latest.status === "attack_detected" ? "Threat detected" : "Authenticated"}
-                  </div>
-                  <h2 className="mt-4 text-3xl font-bold">{latest.verdict}</h2>
-                  <p className="mt-2 text-sm text-slate-400">{latest.attack_type ? `${attackLabels[latest.attack_type]} simulation` : "Quantum optical channel verified intact."}</p>
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <span className="rounded border border-white/10 px-3 py-2 mono text-[10px] text-slate-400">SESSION HASH: {latest.session_hash ?? "NOT RETURNED"}</span>
-                    <button onClick={exportResult} className="flex items-center gap-2 rounded bg-cyan px-3 py-2 text-xs font-bold text-[#06202a]"><Download size={14} /> Export JSON</button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Metric label="Bell-state fidelity" value={formatPercent(1 - latest.error_rate)} detail="1 − error_rate" accent="mint" />
-                  <Metric label="Quantum error / QBER" value={formatPercent(latest.error_rate)} detail={`Threshold ${formatPercent(latest.threshold)}`} />
-                  <Metric label="Forgery anomaly risk" value={formatPercent(latest.forgery_probability)} detail="Backend probability" accent="orange" />
-                  <Metric label="Backend computation time" value={latest.latency_ms !== undefined ? `${latest.latency_ms} ms` : "NOT RETURNED"} detail="Measured request time" />
-                </div>
-              </div>
-            ) : <EmptyState />}
-            
-            <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-              <ChartCard data={chartData} threshold={latest?.threshold ?? 0.05} />
-              <AttackPanel selected={selectedAttack} onSelect={setSelectedAttack} onRun={execute} isRunning={isRunning} />
+      <main className="relative z-10 min-h-screen lg:ml-64 transition-all duration-200">
+        {/* Top Navbar */}
+        <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-zinc-400 hover:text-zinc-100"><Menu size={18} /></button>
+            <h1 className="text-sm font-medium">{view === "command" ? "Live Verification Dashboard" : view === "history" ? "Session Audit Logs" : "Documentation"}</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <span className={`h-1.5 w-1.5 rounded-full ${nominal ? "bg-emerald-500" : "bg-red-500"}`} />
+              Status: {nominal ? "Nominal" : "Alert"}
             </div>
-            
-            <div className="mt-4"><RunHistory history={history.slice(0, 5)} /></div>
-          </section>
-        )}
+          </div>
+        </header>
+
+        <div className="p-4 lg:p-6 max-w-[1400px] mx-auto">
+          {view === "docs" ? (
+             <div className="border border-zinc-800 bg-zinc-900/30 rounded-sm p-6 max-w-3xl">
+               <h2 className="text-lg font-medium mb-4">Architecture Overview</h2>
+               <p className="text-sm text-zinc-400 leading-relaxed mb-6">This dashboard interfaces with a FastAPI/Qiskit backend to monitor Quantum Digital Signatures (QDS). It measures channel integrity using empirical Quantum Bit Error Rates (QBER) rather than relying on unverified theoretical bounds.</p>
+               <div className="grid gap-3 sm:grid-cols-2">
+                 <Metric label="Empirical Threshold" value="5.0%" detail="Configured based on baseline noise" />
+                 <Metric label="Verification Standard" value="SHA3-512" detail="Session hashing algorithm" />
+               </div>
+             </div>
+          ) : view === "history" ? (
+             <RunHistory history={history} />
+          ) : (
+            <div className="space-y-4">
+              
+              {/* Teleportation Node Map - Adapted for Enterprise Theme */}
+              <div className="mb-4">
+                <QDSFlow transmitting={isRunning} result={latest} runSeq={runSeq} />
+              </div>
+
+              {/* Main Verdict & Metrics */}
+              {latest ? (
+                <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+                  <div className={`border rounded-sm p-5 ${nominal ? "border-zinc-800 bg-zinc-900/30" : "border-red-900/50 bg-red-950/10"}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`text-xs font-semibold uppercase tracking-wider ${nominal ? "text-emerald-500" : "text-red-500"}`}>
+                        {nominal ? "✓ Authentication Passed" : "⚠ Security Alert Triggered"}
+                      </div>
+                      <button onClick={exportResult} className="text-[10px] font-medium text-zinc-400 hover:text-zinc-100 border border-zinc-700 hover:bg-zinc-800 rounded-sm px-2 py-1 transition-colors flex items-center gap-1">
+                        <Download size={12} /> Export JSON
+                      </button>
+                    </div>
+                    <h2 className="text-2xl font-semibold mb-1">{latest.verdict}</h2>
+                    <p className="text-xs text-zinc-400 mb-6">{latest.attack_type ? `${attackLabels[latest.attack_type]} vector simulation evaluated.` : "No eavesdropping or bit-flip forgery detected."}</p>
+                    
+                    <div className="bg-black/50 border border-zinc-800 rounded-sm p-2 flex items-center justify-between">
+                       <span className="text-[10px] text-zinc-500">SESSION FINGERPRINT</span>
+                       <span className="font-mono text-[10px] text-zinc-300 break-all">{latest.session_hash ?? "N/A"}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+                    <Metric label="Quantum Bit Error Rate" value={formatPercent(latest.error_rate)} detail={`Threshold: ${formatPercent(latest.threshold)}`} isAlert={!nominal} />
+                    <Metric label="Bell-State Fidelity" value={formatPercent(1 - latest.error_rate)} detail="Derived from QBER" />
+                    <Metric label="Forgery Probability" value={formatPercent(latest.forgery_probability)} detail="Empirical risk factor" isAlert={latest.forgery_probability > 0.05} />
+                    <Metric label="Execution Latency" value={latest.latency_ms !== undefined ? `${latest.latency_ms}ms` : "N/A"} detail="Backend processing time" />
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-zinc-800 bg-zinc-900/30 rounded-sm p-8 text-center text-zinc-500 text-sm">
+                  System initialized. Select simulation parameters to begin verification.
+                </div>
+              )}
+              
+              {/* Telemetry and Controls Grid */}
+              <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+                
+                {/* Telemetry Chart - Adapted back to monotone but in Enterprise colors */}
+                <ChartCard data={chartData} threshold={latest?.threshold ?? 0.05} />
+
+                {/* Control Panel - Utilitarian forms */}
+                <div className="border border-zinc-800 bg-zinc-900/30 rounded-sm p-4 flex flex-col">
+                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">Simulation Control</h3>
+                  
+                  <div className="space-y-1.5 flex-1">
+                    {(Object.keys(attackLabels) as AttackType[]).map((type) => (
+                      <label key={type} className={`flex items-center justify-between p-2.5 rounded-sm border cursor-pointer transition-colors ${selectedAttack === type ? "border-blue-500/50 bg-blue-500/10" : "border-zinc-800 hover:border-zinc-700"}`}>
+                        <div className="flex items-center gap-2">
+                           <input type="radio" name="attack" checked={selectedAttack === type} onChange={() => setSelectedAttack(type)} className="accent-blue-500" />
+                           <span className="text-xs text-zinc-300">{attackLabels[type]}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <button disabled={isRunning} onClick={() => execute("clean")} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-medium py-2 rounded-sm disabled:opacity-50 transition-colors">
+                      Run Clean
+                    </button>
+                    <button disabled={isRunning} onClick={() => execute(selectedAttack)} className="bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-semibold py-2 rounded-sm disabled:opacity-50 transition-colors">
+                      {isRunning ? "Executing..." : "Inject Attack"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
 }
 
-function EmptyState() { 
-  return (
-    <div className="mb-6 rounded-xl border border-dashed border-[var(--line)] bg-[#0b1625] p-8 text-center">
-      <Zap className="mx-auto text-cyan" size={24} />
-      <p className="mt-3 font-medium">No verification run yet</p>
-      <p className="mt-1 text-sm text-slate-500">Choose a scenario below to query the live backend.</p>
-    </div>
-  ); 
-}
+// ------------------------------------------------------------------
+// Sub-components
+// ------------------------------------------------------------------
 
 function ChartCard({ data, threshold }: { data: { index: number; error: number }[]; threshold: number }) {
-  // Dynamically change chart color if a spike exceeds the threshold
   const latestError = data[data.length - 1]?.error || 0;
   const isAttack = latestError > threshold;
-  const strokeColor = isAttack ? "#f87171" : "#22d3ee";
+  const strokeColor = isAttack ? "#ef4444" : "#3b82f6"; // Enterprise red or blue
 
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[#0d1828] p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold"><Activity size={15} className="text-cyan" /> Live QBER telemetry</div>
-          <div className="mono mt-1 text-[9px] text-slate-500">ERROR RATE / THRESHOLD {formatPercent(threshold)}</div>
-        </div>
-        <div className="mono text-[10px] text-slate-500">DOMAIN 0–60%</div>
+    <div className="border border-zinc-800 bg-zinc-900/30 rounded-sm p-4 flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+         <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Live QBER Telemetry</h3>
+         <span className="text-[10px] text-zinc-500 font-mono">DOMAIN: 0.0 - 0.6</span>
       </div>
-      <div className="h-56">
+      <div className="h-48 w-full flex-1 min-w-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+          <AreaChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
             <defs>
-              <linearGradient id="qber" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={strokeColor} stopOpacity={0.35} />
+              <linearGradient id="qberGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={strokeColor} stopOpacity={0.25} />
                 <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#203148" strokeDasharray="3 3" />
-            <XAxis dataKey="index" tick={{ fill: "#64748b", fontSize: 10 }} />
-            <YAxis domain={[0, 0.6]} tickFormatter={formatPercent} tick={{ fill: "#64748b", fontSize: 10 }} />
-            <Tooltip formatter={(value) => formatPercent(Number(value))} contentStyle={{ background: "#0b1625", border: "1px solid #25405b", fontSize: 11 }} />
-            <ReferenceLine y={threshold} stroke="#fb923c" strokeDasharray="5 5" label={{ value: "THRESHOLD", fill: "#fb923c", fontSize: 9 }} />
-            <Area type="monotone" dataKey="error" stroke={strokeColor} strokeWidth={2} fill="url(#qber)" />
+            <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="index" tick={{ fill: "#52525b", fontSize: 10 }} tickLine={false} axisLine={false} />
+            <YAxis domain={[0, 0.6]} tickFormatter={formatPercent} tick={{ fill: "#52525b", fontSize: 10 }} tickLine={false} axisLine={false} />
+            <Tooltip 
+              formatter={(value) => [formatPercent(Number(value)), 'Error Rate']} 
+              contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", fontSize: "11px", borderRadius: "2px" }} 
+              itemStyle={{ color: "#e4e4e7" }}
+            />
+            <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "ABORT LIMIT", fill: "#ef4444", fontSize: 9, position: 'insideTopLeft' }} />
+            {/* Switched back to monotone curved chart, but using flat styling */}
+            <Area type="monotone" dataKey="error" stroke={strokeColor} strokeWidth={2} fill="url(#qberGrad)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
-
-function AttackPanel({ selected, onSelect, onRun, isRunning }: { selected: AttackType; onSelect: (type: AttackType) => void; onRun: (type: AttackType | "clean") => void; isRunning: boolean }) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-[#0d1828] p-5">
-      <div className="flex items-center gap-2 text-sm font-semibold"><ShieldAlert size={15} className="text-orange-300" /> Attack control panel</div>
-      <p className="mono mt-1 text-[9px] text-slate-500">ONE SOURCE OF TRUTH FOR SIMULATION TRIGGERS</p>
-      <div className="mt-4 space-y-2">
-        {(Object.keys(attackLabels) as AttackType[]).map((type) => (
-          <button key={type} onClick={() => onSelect(type)} className={`flex w-full items-center justify-between rounded-md border px-3 py-3 text-left text-xs ${selected === type ? "border-cyan/60 bg-cyan/10 text-cyan" : "border-white/10 text-slate-400 hover:border-cyan/30"}`}>
-            <span>{attackLabels[type]}</span><span className="mono text-[9px]">{selected === type ? "SELECTED" : "SELECT"}</span>
-          </button>
-        ))}
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button disabled={isRunning} onClick={() => onRun("clean")} className="flex items-center justify-center gap-2 rounded-md border border-mint/30 py-3 text-xs text-mint disabled:opacity-40"><CheckCircle2 size={14} /> Clean run</button>
-        <button disabled={isRunning} onClick={() => onRun(selected)} className="flex items-center justify-center gap-2 rounded-md bg-orange-400 py-3 text-xs font-bold text-[#221306] disabled:opacity-40"><Play size={14} /> Run attack</button>
-      </div>
-    </div>
-  );
-}
-
-function RunHistory({ history }: { history: RunRecord[] }) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-[#0d1828] p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold"><History size={15} className="text-cyan" /> Session audit trail</div>
-        <div className="mono text-[9px] text-slate-500">RUNS: {history.length.toString().padStart(2, "0")}</div>
-      </div>
-      {history.length === 0 ? (
-        <div className="py-5 text-center text-sm text-slate-500">No runs recorded in this session.</div>
-      ) : (
-        <div className="space-y-2">
-          {history.map((run, index) => (
-            <div key={run.id} className="grid grid-cols-[36px_1fr_auto] items-center gap-3 rounded-md border border-white/5 bg-[#101e30] px-3 py-3">
-              <span className="mono text-[10px] text-cyan">#{String(history.length - index).padStart(2, "0")}</span>
-              <div>
-                <div className="text-xs font-medium">{run.attack_type ? attackLabels[run.attack_type] : "Clean baseline"}</div>
-                <div className="mono mt-1 flex items-center gap-2 text-[9px] text-slate-500"><Clock3 size={11} /> {formatTime(run.timestamp)} · QBER {formatPercent(run.error_rate)}</div>
-              </div>
-              <span className={`rounded px-2 py-1 mono text-[9px] ${run.status === "attack_detected" ? "bg-red-400/10 text-red-300" : "bg-mint/10 text-mint"}`}>
-                {run.status === "attack_detected" ? "DETECTED" : "ACCEPTED"}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------
-// QDSFlow Components (Alice -> Bob Visualization)
-// ------------------------------------------------------------------
 
 interface QDSFlowProps {
   transmitting: boolean;
@@ -291,47 +288,41 @@ interface QDSFlowProps {
 
 function QDSFlow({ transmitting, result, runSeq }: QDSFlowProps) {
   const detected = result?.status === "attack_detected" || result?.status === "attack_undetected";
-  const idleTrialCount = result?.trial_count ?? 20;
+  
+  // Flat Enterprise Palette (No neon glow)
+  const BLUE = "#3b82f6";
+  const RED = "#ef4444";
+  const ZINC = "#3f3f46"; // zinc-700
+  const MUTED = "#71717a"; // zinc-500
 
-  // Map css variables to the dashboard's specific hex colors
-  const CYAN = "#22d3ee";
-  const DANGER = "#f87171";
-  const BORDER = "#1e293b";
-  const MUTED = "#64748b";
-
-  const bobColor = !result ? CYAN : detected ? DANGER : CYAN;
-  const channelColor = transmitting ? (detected ? DANGER : CYAN) : BORDER;
+  const bobColor = !result ? BLUE : detected ? RED : BLUE;
+  const channelColor = transmitting ? (detected ? RED : BLUE) : ZINC;
 
   return (
-    <div aria-label="Alice to Bob quantum teleportation channel" className="relative rounded-xl border border-[#1e293b] bg-[#0d1828] px-4 py-8 sm:px-8 sm:py-10">
-      <div className="mb-8 text-center">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-cyan/80">
-          Quantum Teleportation Channel
-        </p>
+    <div aria-label="Alice to Bob quantum teleportation channel" className="relative rounded-sm border border-zinc-800 bg-zinc-900/30 px-4 py-6 sm:px-8 sm:py-8 overflow-hidden">
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Channel Topology</h3>
+        {result && <div className="text-[10px] font-mono text-zinc-500">LAST SYNC: {formatTime(result.timestamp)}</div>}
       </div>
 
-      <div className="flex items-center justify-between gap-2 sm:gap-6">
-        <FlowNode name="Alice" role="Signer" color={CYAN} active={transmitting} />
+      <div className="flex items-center justify-between gap-1 sm:gap-6 max-w-3xl mx-auto">
+        <FlowNode name="Alice" role="Signer" color={BLUE} active={transmitting} />
 
-        {/* Channel between the two parties. */}
-        <div className="relative mx-1 flex-1">
-          {/* entangled link (idle shimmer) */}
-          <svg className="h-16 w-full" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden>
+        <div className="relative mx-1 flex-1 min-w-[50px]">
+          <svg className="h-12 sm:h-16 w-full" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden>
             <line x1="0" y1="20" x2="400" y2="20" stroke={channelColor} strokeWidth="1.5" strokeDasharray="6 6" style={{ animation: "qds-dash 1.2s linear infinite" }} opacity="0.7" />
             <line x1="0" y1="44" x2="400" y2="44" stroke={channelColor} strokeWidth="1.5" strokeDasharray="6 6" style={{ animation: "qds-dash 1.6s linear infinite reverse" }} opacity="0.7" />
-            <text x="200" y="14" textAnchor="middle" fill={MUTED} fontSize="9" fontFamily="monospace" letterSpacing="1">
+            <text x="200" y="14" textAnchor="middle" fill={MUTED} fontSize="9" fontFamily="monospace" letterSpacing="1" className="hidden sm:block">
               entangled pair
             </text>
           </svg>
 
-          {/* Traveling classical-bit pulse. */}
           {transmitting && (
             <span
               key={runSeq}
-              className="pointer-events-none absolute top-1/2 h-2.5 w-12 -translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute top-1/2 h-2.5 w-12 -translate-y-1/2 rounded-sm"
               style={{
                 background: channelColor,
-                boxShadow: `0 0 14px 4px ${channelColor}`,
                 animation: "qds-travel 1.1s ease-in-out infinite",
               }}
             />
@@ -341,14 +332,14 @@ function QDSFlow({ transmitting, result, runSeq }: QDSFlowProps) {
         <FlowNode name="Bob" role="Verifier" color={bobColor} active={transmitting} arriveSeq={result ? runSeq : 0} lit={!!result && !transmitting} />
       </div>
 
-      <p className="mt-6 text-center font-mono text-[11px] text-slate-500">
+      <p className="mt-4 sm:mt-6 text-center font-mono text-[9px] sm:text-[10px] text-zinc-500 px-2">
         {transmitting
           ? "Transmitting classical correction bits…"
           : result
             ? detected
               ? "Bob's measurement statistics flagged tampering."
               : "Bob reconstructed Alice's signed qubit successfully."
-            : `Idle — entangled pair shared (Trials: ${idleTrialCount})`}
+            : `Idle — entangled pair shared (Trials: ${result?.trial_count ?? 20})`}
       </p>
     </div>
   );
@@ -365,22 +356,21 @@ interface NodeProps {
 
 function FlowNode({ name, role, color, active, lit, arriveSeq }: NodeProps) {
   return (
-    <div className="flex w-20 shrink-0 flex-col items-center gap-2 sm:w-28">
+    <div className="flex w-16 sm:w-20 shrink-0 flex-col items-center gap-2">
       <div
         key={arriveSeq}
-        className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 sm:h-20 sm:w-20"
+        className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 bg-zinc-950 transition-colors"
         style={{
           borderColor: color,
-          background: "#101e30",
-          boxShadow: active || lit ? `0 0 20px 2px ${color}55` : "none",
           animation: arriveSeq ? "qds-arrive 0.7s ease-out" : undefined,
+          // Box shadow glow removed to fit the enterprise theme
         }}
       >
         <QubitGlyph color={color} />
       </div>
-      <div className="text-center">
-        <p className="font-mono text-sm font-semibold sm:text-base" style={{ color }}>{name}</p>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">{role}</p>
+      <div className="text-center mt-1">
+        <p className="font-mono text-xs sm:text-sm font-semibold text-zinc-200">{name}</p>
+        <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-widest text-zinc-500 mt-0.5">{role}</p>
       </div>
     </div>
   );
@@ -388,11 +378,54 @@ function FlowNode({ name, role, color, active, lit, arriveSeq }: NodeProps) {
 
 function QubitGlyph({ color }: { color: string }) {
   return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden>
-      <circle cx="17" cy="17" r="4" fill={color} style={{ filter: `drop-shadow(0 0 4px ${color})` }} />
+    <svg width="24" height="24" viewBox="0 0 34 34" aria-hidden className="sm:w-[34px] sm:h-[34px]">
+      <circle cx="17" cy="17" r="4" fill={color} />
       <ellipse cx="17" cy="17" rx="14" ry="6" fill="none" stroke={color} strokeWidth="1.2" opacity="0.7" />
       <ellipse cx="17" cy="17" rx="14" ry="6" fill="none" stroke={color} strokeWidth="1.2" opacity="0.7" transform="rotate(60 17 17)" />
       <ellipse cx="17" cy="17" rx="14" ry="6" fill="none" stroke={color} strokeWidth="1.2" opacity="0.7" transform="rotate(120 17 17)" />
     </svg>
+  );
+}
+
+function RunHistory({ history }: { history: RunRecord[] }) {
+  return (
+    <div className="border border-zinc-800 bg-zinc-900/30 rounded-sm overflow-hidden">
+      <div className="border-b border-zinc-800 p-4 flex justify-between items-center bg-zinc-900/50">
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Execution Logs</h3>
+        <span className="text-[10px] text-zinc-500 font-mono">TOTAL: {history.length}</span>
+      </div>
+      {history.length === 0 ? (
+        <div className="p-8 text-center text-sm text-zinc-500">No logs found for current session.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-900/80 text-zinc-500 font-mono text-[9px] uppercase">
+              <tr>
+                <th className="px-4 py-2 font-normal">Time</th>
+                <th className="px-4 py-2 font-normal">Vector</th>
+                <th className="px-4 py-2 font-normal">QBER</th>
+                <th className="px-4 py-2 font-normal">Verdict</th>
+                <th className="px-4 py-2 font-normal text-right">Latency</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/50 text-zinc-300">
+              {history.map((run) => (
+                <tr key={run.id} className="hover:bg-zinc-800/30">
+                  <td className="px-4 py-3 font-mono text-[10px] text-zinc-500">{formatTime(run.timestamp)}</td>
+                  <td className="px-4 py-3">{run.attack_type ? attackLabels[run.attack_type] : "Clean Baseline"}</td>
+                  <td className="px-4 py-3 font-mono text-[10px]">{formatPercent(run.error_rate)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-1.5 py-0.5 rounded-sm text-[9px] uppercase ${run.status === "attack_detected" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                      {run.status === "attack_detected" ? "Rejected" : "Passed"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-[10px] text-right text-zinc-500">{run.latency_ms}ms</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

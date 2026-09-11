@@ -24,7 +24,7 @@ def compute_error_rate(message: str, revealed_key: str, received_states: list) -
         expected_state = get_message_state(theta, phi)
         fidelities.append(state_fidelity(received_state, expected_state))
     avg_fidelity = float(np.mean(fidelities))
-    return max(0.0, 1.0 - avg_fidelity)
+    return max(0.0, 1.0 - avg_fidelity) 
 
 def compute_forgery_probability(error_rate: float, threshold: float = DEFAULT_THRESHOLD) -> float:
     """

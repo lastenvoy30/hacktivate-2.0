@@ -1,3 +1,5 @@
+import time
+import hashlib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -37,21 +39,39 @@ class AttackRequest(BaseModel):
     attack_type: str  # "forgery" | "impersonation" | "replay" | "channel_manipulation"
 
 
-def _finalize(result: dict, attack_type: Optional[str]) -> dict:
+def _finalize(result: dict, attack_type: Optional[str], start_time: float) -> dict:
+    # 1. Stop timer and calculate latency in milliseconds
+    latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    
+    # 2. Generate a real SHA3-512 cryptographic hash fingerprint for this session
+    error_rate = result.get("error_rate", 0.0)
+    tag = "DETECTED" if result.get("status") == "attack_detected" else "CLEAN"
+    raw_str = f"{attack_type}-{error_rate}-{timestamp}".encode('utf-8')
+    hash_hex = hashlib.sha3_512(raw_str).hexdigest()[:16].upper()
+    session_hash = f"0x{hash_hex}-QDS-{tag}"
+
+    # 3. Inject the final fields into the API response
     result["attack_type"] = attack_type
-    result["timestamp"] = datetime.now(timezone.utc).isoformat()
+    result["timestamp"] = timestamp
+    result["latency_ms"] = latency_ms
+    result["session_hash"] = session_hash
     return result
 
 
 @app.post("/simulate/clean")
 def simulate_clean():
+    start_time = time.perf_counter()
+    
     received_states = sign_message(DEMO_MESSAGE, DEMO_PRIVATE_KEY, NUM_COPIES)
     result = evaluate_signature(DEMO_MESSAGE, DEMO_PRIVATE_KEY, received_states)
-    return _finalize(result, None)
+    
+    return _finalize(result, None, start_time)
 
 
 @app.post("/simulate/attack")
 def simulate_attack(request: AttackRequest):
+    start_time = time.perf_counter()
     attack_type = request.attack_type
 
     if attack_type == "forgery":
@@ -85,4 +105,4 @@ def simulate_attack(request: AttackRequest):
     else:
         raise HTTPException(status_code=400, detail=f"Unknown attack_type: {attack_type}")
 
-    return _finalize(result, attack_type)
+    return _finalize(result, attack_type, start_time)

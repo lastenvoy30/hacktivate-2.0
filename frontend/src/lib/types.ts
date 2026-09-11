@@ -1,0 +1,26 @@
+export type AttackType = "forgery" | "impersonation" | "replay" | "channel_manipulation";
+export type RunStatus = "clean" | "attack_detected" | "attack_undetected";
+
+export interface SimulationResponse {
+  status: RunStatus;
+  attack_type: AttackType | null;
+  error_rate: number;
+  threshold: number;
+  verdict: string;
+  forgery_probability: number;
+  trial_count: number;
+  timestamp: string;
+  latency_ms?: number;
+  session_hash?: string;
+}
+
+export interface RunRecord extends SimulationResponse {
+  id: number;
+}
+
+export const attackLabels: Record<AttackType, string> = {
+  forgery: "Forgery",
+  impersonation: "Impersonation",
+  replay: "Replay",
+  channel_manipulation: "Channel manipulation"
+};

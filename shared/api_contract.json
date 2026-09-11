@@ -1,0 +1,43 @@
+{
+  "endpoints": {
+    "clean_run": "POST /simulate/clean",
+    "attack_run": "POST /simulate/attack"
+  },
+  "request_shape": {
+    "attack_run": {
+      "attack_type": "string — 'forgery' | 'impersonation' | 'replay' | 'channel_manipulation'"
+    }
+  },
+  "response_shape": {
+    "status": "string — 'clean' | 'attack_detected' | 'attack_undetected'",
+    "attack_type": "string or null — 'forgery' | 'impersonation' | 'replay' | 'channel_manipulation'",
+    "error_rate": "number between 0 and 1",
+    "threshold": "number between 0 and 1",
+    "verdict": "string — human-readable result",
+    "forgery_probability": "number between 0 and 1",
+    "trial_count": "integer",
+    "timestamp": "ISO 8601 string"
+  },
+  "examples": {
+    "clean_run_example": {
+      "status": "clean",
+      "attack_type": null,
+      "error_rate": 0.02,
+      "threshold": 0.11,
+      "verdict": "Signature Accepted",
+      "forgery_probability": 0,
+      "trial_count": 100,
+      "timestamp": "2026-09-04T10:15:00Z"
+    },
+    "attack_detected_example": {
+      "status": "attack_detected",
+      "attack_type": "forgery",
+      "error_rate": 0.34,
+      "threshold": 0.11,
+      "verdict": "Signature Rejected — Attack Detected",
+      "forgery_probability": 0.91,
+      "trial_count": 100,
+      "timestamp": "2026-09-04T10:16:42Z"
+    }
+  }
+}

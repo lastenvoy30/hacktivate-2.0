@@ -1,0 +1,28 @@
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python cache/compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+
+# Environment variables
+.env
+.env.local
+
+# IDE/editor junk
+.vscode/
+.idea/
+
+# OS junk (Windows/Mac)
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log

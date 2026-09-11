@@ -36,7 +36,50 @@ def measure_qubit(basis: str, shots: int = 1000) -> dict:
     return result[0].data.c.get_counts()
 
 
+def build_bell_pair_circuit(basis: str = "Z") -> QuantumCircuit:
+    """
+    Creates a 2-qubit Bell pair (Phi+ state) and measures BOTH qubits
+    in the same chosen basis, to test for genuine entanglement.
+    """
+    qc = QuantumCircuit(2, 2)
+
+    # Create entanglement
+    qc.h(0)      # put qubit 0 into superposition
+    qc.cx(0, 1)  # CNOT: entangles qubit 1 with qubit 0
+
+    # Rotate both qubits into the chosen measurement basis
+    if basis == "Z":
+        pass
+    elif basis == "X":
+        qc.h(0)
+        qc.h(1)
+    elif basis == "Y":
+        qc.sdg(0)
+        qc.h(0)
+        qc.sdg(1)
+        qc.h(1)
+    else:
+        raise ValueError("basis must be 'X', 'Y', or 'Z'")
+
+    qc.measure(0, 0)
+    qc.measure(1, 1)
+    return qc
+
+
+def run_bell_test(basis: str = "Z", shots: int = 1000) -> dict:
+    sampler = Sampler()
+    qc = build_bell_pair_circuit(basis)
+    job = sampler.run([qc], shots=shots)
+    result = job.result()
+    return result[0].data.c.get_counts()
+
 if __name__ == "__main__":
     for basis in ["Z", "X", "Y"]:
         counts = measure_qubit(basis)
         print(f"{basis}-basis measurement of |0> over 1000 shots:", counts)
+
+    print()
+
+    for basis in ["Z", "X", "Y"]:
+        counts = run_bell_test(basis)
+        print(f"{basis}-basis Bell pair measurement over 1000 shots:", counts)
